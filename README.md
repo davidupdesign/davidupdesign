@@ -9,7 +9,7 @@
 - Email: [davidupdesign@gmail.com](mailto:davidupdesign@gmail.com)
 - @davidupdesign: [X](https://x.com/davidupdesign) / [Linkedin](https://www.linkedin.com/in/davidupdesign/)
 
-## You Are ＃
+## You are ＃
 
 ![Visited By](https://count.getloli.com/@myveryuniq_counter_davidupdesign?theme=booru-jaypee&padding=4&offset=-10&align=top&scale=1.0&pixelated=1&darkmode=auto&prefix=0)
 
