@@ -4,7 +4,7 @@
 - Builds full-stack web apps in React and native macOS apps in Swift
 - Currently: macOS apps & open-source AI agent tooling + work projects
 
-## <img src="icons/at-sign-cornflower.svg" height="26" align="absmiddle" alt="@" /> Reach Me
+## <img src="icons/at-sign-cornflower.svg" height="26" align="absmiddle" alt="@" /> Say Hi
 
 - Email: [davidupdesign@gmail.com](mailto:davidupdesign@gmail.com)
 - @davidupdesign: [X](https://x.com/davidupdesign) / [Linkedin](https://www.linkedin.com/in/davidupdesign/)
