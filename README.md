@@ -15,7 +15,7 @@
 
 ## <img src="icons/command-champagne.svg" height="26" align="absmiddle" alt="⌘" /> Currently Working on
 
-- ["What's Next" v0.5.0 [RC]](#-currently-working-on): a macOS music live activity app that lives in your menu bar.
+- "What's Next" v0.5.0 [RC]: a macOS music live activity app that lives in your menu bar.
 - [Maestro [BETA]](https://github.com/davidupdesign/Maestro): a native macOS app orchestrating multi-provider AI agents on one repo
 - [coded-lyrics](https://github.com/davidupdesign/coded-lyrics): play a track with lyrics appearing word by word over an ASCII music video, in your terminal or browser
 
