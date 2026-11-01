@@ -2,7 +2,7 @@
 
 - Software Developer @ EI
 - Builds full-stack web apps in React and native macOS apps in Swift
-- Currently: macOS apps & open-source AI agent tooling + work projects
+- Lately focusing on macOS apps & open-source AI agent tooling + work projects
 
 ## <img src="icons/at-sign-cornflower.svg" height="26" align="absmiddle" alt="@" /> Say Hi
 
