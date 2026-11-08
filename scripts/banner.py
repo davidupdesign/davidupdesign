@@ -1,7 +1,7 @@
 """Draw the pixel-art sunset banner: dithered dusk sky framed by two swaying palms.
 
 Run:  python3 scripts/banner.py   (needs Pillow) -> assets/banner.gif
-Everything is drawn at W x H and scaled up by SCALE with hard pixel edges.
+The scene is drawn at W x H and scaled up by SCALE with hard pixel edges.
 """
 
 import math
@@ -10,12 +10,13 @@ from pathlib import Path
 
 from PIL import Image
 
-W, H = 320, 144
+W, H = 328, 92  # 984 x 276 on screen (32:9), the width of a GitHub README column
 SCALE = 3
 FRAMES = 48
 FRAME_MS = 110
 CLEAR = 64  # palette size; also the index used for unchanged pixels
 OUT = Path(__file__).resolve().parent.parent / "assets" / "banner.gif"
+
 
 # Sky colour stops from top (0) to bottom (1).
 SKY = [
@@ -30,7 +31,7 @@ SKY = [
 ]
 SKY_STEPS = 18  # flat colour bands; dithering blends between them
 DUSK = (24, 14, 22)  # the dark fade along the bottom edge
-FADE_ROWS = 16
+FADE_ROWS = 10
 
 # Each palm has a back layer (lighter, hazier) and a front layer (darker).
 LEAF_BACK = (104, 52, 112)
@@ -166,17 +167,17 @@ def make_fronds(seed, fronds, scale=1.0):
 
 
 # Angles: 90 = straight up, 180 = left, 270 = straight down.
-LEFT_CROWN = (24, 76)
-LEFT_TRUNK = ((-6, H + 6), (14, 118))
-LEFT_BACK = make_fronds(1, [(100, 50), (128, 42), (56, 50), (156, 38), (22, 52), (-8, 48), (200, 34)], 1.15)
-LEFT_FRONT = make_fronds(2, [(84, 54), (112, 46), (70, 50), (38, 54), (140, 40), (6, 50), (-28, 44)], 1.15)
+LEFT_CROWN = (26, 48)
+LEFT_TRUNK = ((-4, H + 6), (14, 80))
+LEFT_BACK = make_fronds(1, [(100, 50), (128, 42), (56, 50), (156, 38), (22, 52), (-8, 48), (200, 34)], 0.8)
+LEFT_FRONT = make_fronds(2, [(84, 54), (112, 46), (70, 50), (38, 54), (140, 40), (6, 50), (-28, 44)], 0.8)
 
-RIGHT_CROWN = (292, 32)
-RIGHT_TRUNK = ((326, H + 6), (304, 104))
+RIGHT_CROWN = (302, 18)
+RIGHT_TRUNK = ((334, H + 6), (314, 66))
 RIGHT_BACK = make_fronds(3, [(100, 52), (126, 64), (150, 74), (172, 78), (196, 74), (222, 66),
-                             (248, 58), (58, 50), (24, 48)], 1.3)
+                             (248, 58), (58, 50), (24, 48)], 0.95)
 RIGHT_FRONT = make_fronds(4, [(112, 58), (138, 70), (160, 78), (184, 76), (208, 70), (234, 62),
-                              (80, 54), (40, 50), (8, 46)], 1.3)
+                              (80, 54), (40, 50), (8, 46)], 0.95)
 
 
 def draw_trunk(canvas, trunk, crown):
@@ -215,11 +216,11 @@ def frame(f):
 
 
 def main():
-    frames = [frame(f) for f in range(FRAMES)]
+    frames = [frame(f).resize((W * SCALE, H * SCALE), Image.NEAREST) for f in range(FRAMES)]
     # One shared palette so colours never shift between frames.
-    sample = Image.new("RGB", (W, H * 6))
+    sample = Image.new("RGB", (W * SCALE, H * SCALE * 6))
     for i, f in enumerate(range(0, FRAMES, FRAMES // 6)):
-        sample.paste(frames[f], (0, H * i))
+        sample.paste(frames[f], (0, H * SCALE * i))
     palette = sample.quantize(colors=CLEAR, dither=Image.Dither.NONE)
     out, prev = [], None
     for fr in frames:
@@ -227,10 +228,10 @@ def main():
         # Later frames only carry pixels that changed; the rest are see-through.
         data = cur if prev is None else [c if c != p else CLEAR for c, p in zip(cur, prev)]
         prev = cur
-        img = Image.new("P", (W, H))
+        img = Image.new("P", fr.size)
         img.putpalette(palette.getpalette()[: CLEAR * 3] + [0, 0, 0] * (256 - CLEAR))
         img.putdata(data)
-        out.append(img.resize((W * SCALE, H * SCALE), Image.NEAREST))
+        out.append(img)
     OUT.parent.mkdir(parents=True, exist_ok=True)
     out[0].save(
         OUT, save_all=True, append_images=out[1:], duration=FRAME_MS, loop=0,
