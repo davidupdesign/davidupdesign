@@ -9,8 +9,13 @@
 - Email: [davidupdesign@gmail.com](mailto:davidupdesign@gmail.com)
 - @davidupdesign: [X](https://x.com/davidupdesign) / [Linkedin](https://www.linkedin.com/in/davidupdesign/)
 
-## You are ＃
+---
 
-![Visited By](https://count.getloli.com/@myveryuniq_counter_davidupdesign?theme=booru-jaypee&padding=4&offset=-10&align=top&scale=1.0&pixelated=1&darkmode=auto&prefix=0)![My koi, redrawn every night from the day's activity](koi/koi.gif)  
+<div>
+<a href="https://github.com/yalongwastaken/git-koi"><img src="koi/koi.gif" align="right" width="45%" alt="My koi, redrawn every night from the day's activity"></a><img src="assets/divider-top.svg" align="right" width="5%" alt="">
+<h3>You are ＃</h3>
+<img src="https://count.getloli.com/@myveryuniq_counter_davidupdesign?theme=booru-jaypee&padding=4&offset=-10&align=top&scale=1.0&pixelated=1&darkmode=auto&prefix=0" width="38%" alt="Visited By"><br clear="all">
+<a href="https://github.com/davidupdesign?tab=repositories"><picture><source media="(prefers-color-scheme: dark)" srcset="cards/languages-dark.svg"><img src="cards/languages-light.svg" align="right" width="45%" alt="Languages by repo count"></picture></a><img src="assets/divider-bottom.svg" align="right" width="5%" alt=""><br clear="all">
+</div>
 
 ## ![⌘](icons/command-champagne.svg) More on My Profile ↓
