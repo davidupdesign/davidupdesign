@@ -1,4 +1,5 @@
-"""Draw the pixel-art sunset banner: dithered dusk sky framed by two swaying palms.
+"""Draw the pixel-art sunset banner: dithered dusk sky, two swaying palms, and a tiny sun
+glinting through the leaves.
 
 Run:  python3 scripts/banner.py   (needs Pillow) -> assets/banner.gif
 The scene is drawn at W x H and scaled up by SCALE with hard pixel edges.
@@ -10,11 +11,11 @@ from pathlib import Path
 
 from PIL import Image
 
-W, H = 328, 92  # 984 x 276 on screen (32:9), the width of a GitHub README column
+W, H = 328, 72  # 984 x 216 on screen, the width of a GitHub README column
 SCALE = 3
-FRAMES = 48
-FRAME_MS = 110
-CLEAR = 64  # palette size; also the index used for unchanged pixels
+FRAMES = 72
+FRAME_MS = 75  # 72 x 75ms: the same ~5.4s loop as before, just smoother
+CLEAR = 96  # palette size; also the index used for unchanged pixels
 OUT = Path(__file__).resolve().parent.parent / "assets" / "banner.gif"
 
 
@@ -23,15 +24,23 @@ SKY = [
     (0.00, (72, 88, 184)),
     (0.20, (104, 88, 186)),
     (0.42, (150, 88, 188)),
-    (0.62, (200, 92, 178)),
-    (0.76, (226, 120, 180)),
-    (0.86, (238, 168, 186)),
-    (0.92, (242, 200, 182)),
-    (1.00, (214, 176, 170)),
+    (0.62, (196, 90, 178)),
+    (0.78, (222, 106, 176)),
+    (0.90, (234, 136, 178)),
+    (1.00, (228, 156, 172)),
 ]
 SKY_STEPS = 18  # flat colour bands; dithering blends between them
 DUSK = (24, 14, 22)  # the dark fade along the bottom edge
-FADE_ROWS = 10
+FADE_ROWS = 8
+
+# The sun: a small bright disc with a glowing ring, set in a gap inside the right palm's
+# crown so the swaying leaves cover and uncover it. Wide soft glare surrounds it, and a
+# long horizontal streak with a rose-red edge shines whenever the gap opens up.
+FLARE_X, FLARE_Y = 271, 18
+FLARE = (255, 236, 222)
+SPARK = (255, 255, 250)  # the sun's white-hot centre
+SUN_R = 3
+ROSE = (236, 118, 168)  # the reddish rim around the sun and along its streak
 
 # Each palm has a back layer (lighter, hazier) and a front layer (darker).
 LEAF_BACK = (104, 52, 112)
@@ -73,6 +82,82 @@ def draw_sky(px):
             px[x, y] = BANDS[pick]
 
 
+def screen(base, color, amount):
+    """Lighten like light through a lens (screen blend), by a dithered amount."""
+    return tuple(round(c + (255 - c) * (t / 255) * amount) for c, t in zip(base, color))
+
+
+def dithered(x, y, amount, steps=8):
+    """Snap a 0..1 amount to a few flat steps, dithered, so the glow stays pixel art."""
+    level = int(amount * steps + (BAYER[y % 4][x % 4] - 7.5) / 16)
+    return max(0, min(steps, level)) / steps
+
+
+def draw_bloom(px, theta):
+    """The glare around the light source; drawn behind the palms so swaying fronds
+    pass in front of it."""
+    pulse = 1 + 0.07 * math.sin(theta)
+    for y in range(H):
+        for x in range(W):
+            d = math.hypot(x - FLARE_X, y - FLARE_Y)
+            glow = 0.4 * math.exp(-((d / (40 * pulse)) ** 2)) + 0.22 * math.exp(-d / (110 * pulse))
+            glow += 0.35 * math.exp(-((d / 8) ** 2))
+            a = dithered(x, y, min(1.0, glow), steps=16)
+            if a:
+                px[x, y] = screen(px[x, y], FLARE, a)
+
+
+def draw_sun(px):
+    """The white disc, fading out through a rose-red rim (the sun's outline). Drawn between
+    the right palm's back and front leaves, so the dark front fronds pass over it."""
+    r = int(SUN_R + 5)
+    for y in range(max(0, FLARE_Y - r), min(H, FLARE_Y + r + 1)):
+        for x in range(max(0, FLARE_X - r), min(W, FLARE_X + r + 1)):
+            d = math.hypot(x - FLARE_X, y - FLARE_Y)
+            disc = 1.0 if d <= SUN_R else math.exp(-(((d - SUN_R) / 1.6) ** 2))
+            a = dithered(x, y, disc, steps=16)
+            if a:
+                px[x, y] = screen(px[x, y], SPARK if disc > 0.6 else ROSE, a)
+
+
+def draw_flare(px, clear):
+    """The sun's long horizontal streak and a soft glare over nearby leaves, over
+    everything. `clear` (0..1) is how open the gap in the leaves is: they shine when it
+    opens and fade as it closes. Faint parts take the rose rim colour, bright parts white."""
+    # Off while the gap is nearly closed, full strength once it is a bit under half open.
+    t = max(0.0, min(1.0, (clear - 0.1) / 0.32))
+    streak_on = t * t * (3 - 2 * t)
+    for y in range(H):
+        for x in range(W):
+            dx, dy = x - FLARE_X, y - FLARE_Y
+            d = math.hypot(dx, dy)
+            # The streak holds near full strength for most of the loop, then fades out
+            # completely while the leaves cover the sun.
+            streak = 0.95 * math.exp(-((dy / 1.3) ** 2)) * math.exp(-abs(dx) / 110)
+            core = 0.9 * math.exp(-((d / 4) ** 2))
+            glow = core + 0.4 * math.exp(-((d / 13) ** 2))
+            light = streak + glow
+            a = dithered(x, y, min(1.0, streak * streak_on + glow * clear), steps=16)
+            if a:
+                color = SPARK if core > 0.5 else FLARE if light > 0.45 else ROSE
+                px[x, y] = screen(px[x, y], color, a)
+
+
+def right_palm_mask(theta):
+    """Every pixel the right palm's front leaves cover at this moment of the sway."""
+    mask = set()
+    scratch = Image.new("RGB", (W, H)).load()
+    draw_palm(scratch, RIGHT_CROWN, RIGHT_TRUNK, RIGHT_BACK, RIGHT_FRONT, theta, 20, mask)
+    return mask
+
+
+def coverage(mask, cx, cy, r=SUN_R):
+    """How much of the sun's disc is hidden behind leaves (0 = clear, 1 = fully covered)."""
+    disc = [(x, y) for x in range(int(cx - r), int(cx + r) + 1)
+            for y in range(int(cy - r), int(cy + r) + 1) if math.hypot(x - cx, y - cy) <= r]
+    return sum(p in mask for p in disc) / len(disc)
+
+
 def draw_fade(px):
     for y in range(H - FADE_ROWS, H):
         t = ((y - (H - FADE_ROWS)) / (FADE_ROWS - 1)) ** 1.4
@@ -84,12 +169,14 @@ def draw_fade(px):
 class Canvas:
     """Plots leaf pixels, fading them toward the sky lower down (haze)."""
 
-    def __init__(self, px, color, haze):
-        self.px, self.color, self.haze = px, color, haze
+    def __init__(self, px, color, haze, mask=None):
+        self.px, self.color, self.haze, self.mask = px, color, haze, mask
 
     def dot(self, x, y, color=None):
         x, y = round(x), round(y)
         if 0 <= x < W and 0 <= y < H:
+            if self.mask is not None:
+                self.mask.add((x, y))
             color = color or self.color
             fog = self.haze * max(0.0, (y - H * 0.25) / (H * 0.75)) ** 1.3
             self.px[x, y] = lerp(color, self.px[x, y], fog) if fog else color
@@ -167,17 +254,17 @@ def make_fronds(seed, fronds, scale=1.0):
 
 
 # Angles: 90 = straight up, 180 = left, 270 = straight down.
-LEFT_CROWN = (26, 48)
-LEFT_TRUNK = ((-4, H + 6), (14, 80))
-LEFT_BACK = make_fronds(1, [(100, 50), (128, 42), (56, 50), (156, 38), (22, 52), (-8, 48), (200, 34)], 0.8)
-LEFT_FRONT = make_fronds(2, [(84, 54), (112, 46), (70, 50), (38, 54), (140, 40), (6, 50), (-28, 44)], 0.8)
+LEFT_CROWN = (28, 36)
+LEFT_TRUNK = ((-2, H + 6), (16, 60))
+LEFT_BACK = make_fronds(1, [(100, 50), (128, 42), (56, 50), (156, 38), (22, 52), (-8, 48), (200, 34)], 0.66)
+LEFT_FRONT = make_fronds(2, [(84, 54), (112, 46), (70, 50), (38, 54), (140, 40), (6, 50), (-28, 44)], 0.66)
 
-RIGHT_CROWN = (302, 18)
-RIGHT_TRUNK = ((334, H + 6), (314, 66))
+RIGHT_CROWN = (302, 12)
+RIGHT_TRUNK = ((332, H + 6), (314, 48))
 RIGHT_BACK = make_fronds(3, [(100, 52), (126, 64), (150, 74), (172, 78), (196, 74), (222, 66),
-                             (248, 58), (58, 50), (24, 48)], 0.95)
+                             (248, 58), (58, 50), (24, 48)], 0.78)
 RIGHT_FRONT = make_fronds(4, [(112, 58), (138, 70), (160, 78), (184, 76), (208, 70), (234, 62),
-                              (80, 54), (40, 50), (8, 46)], 0.95)
+                              (80, 54), (40, 50), (8, 46)], 0.78)
 
 
 def draw_trunk(canvas, trunk, crown):
@@ -193,24 +280,50 @@ def draw_trunk(canvas, trunk, crown):
                 canvas.dot(x + dx, y, TRUNK_RING if ring and abs(dx) < r - 0.5 else None)
 
 
-def draw_palm(px, crown, trunk, back, front, theta, seed):
+def draw_palm(px, crown, trunk, back, front, theta, seed, mask=None, between=None):
+    """Back (hazy) fronds, then `between` (e.g. the sun), then trunk and front fronds.
+    `mask` collects the front layer's pixels: the leaves that can hide the sun."""
     rnd = random.Random(seed)
     back_canvas = Canvas(px, LEAF_BACK, 0.55)
-    front_canvas = Canvas(px, LEAF_FRONT, 0.42)
+    front_canvas = Canvas(px, LEAF_FRONT, 0.42, mask)
     for ang, length in back:
         draw_frond(back_canvas, crown, ang, length, droop_for(ang), theta, rnd.uniform(0, 6.3), rnd)
+    if between:
+        between()
     draw_trunk(front_canvas, trunk, crown)
     for ang, length in front:
         draw_frond(front_canvas, crown, ang, length, droop_for(ang), theta, rnd.uniform(0, 6.3), rnd)
+
+
+_OPENNESS = None
+
+
+def openness(f):
+    """0 when the leaves cover the sun the most over the loop, 1 when they cover it least."""
+    global _OPENNESS
+    if _OPENNESS is None:
+        raw = [coverage(right_palm_mask(2 * math.pi * k / FRAMES), FLARE_X, FLARE_Y) for k in range(FRAMES)]
+        # Smooth over neighbouring frames so the glow eases in and out instead of jumping
+        # each time a single leaf pixel crosses the sun.
+        weights = [math.exp(-((k / 3.5) ** 2)) for k in range(-8, 9)]
+        c = [sum(w * raw[(i + k - 8) % FRAMES] for k, w in enumerate(weights)) / sum(weights)
+             for i in range(FRAMES)]
+        lo, hi = min(c), max(c)
+        _OPENNESS = [((hi - v) / (hi - lo)) ** 1.3 if hi > lo else 1.0 for v in c]
+    return _OPENNESS[f]
 
 
 def frame(f):
     theta = 2 * math.pi * f / FRAMES
     img = Image.new("RGB", (W, H))
     px = img.load()
+    clear = openness(f)
     draw_sky(px)
+    draw_bloom(px, theta)
     draw_palm(px, LEFT_CROWN, LEFT_TRUNK, LEFT_BACK, LEFT_FRONT, theta, 10)
-    draw_palm(px, RIGHT_CROWN, RIGHT_TRUNK, RIGHT_BACK, RIGHT_FRONT, theta, 20)
+    draw_palm(px, RIGHT_CROWN, RIGHT_TRUNK, RIGHT_BACK, RIGHT_FRONT, theta, 20,
+              between=lambda: draw_sun(px))
+    draw_flare(px, clear)
     draw_fade(px)
     return img
 
@@ -218,9 +331,17 @@ def frame(f):
 def main():
     frames = [frame(f).resize((W * SCALE, H * SCALE), Image.NEAREST) for f in range(FRAMES)]
     # One shared palette so colours never shift between frames.
-    sample = Image.new("RGB", (W * SCALE, H * SCALE * 6))
+    # The sun's few white pixels would lose their palette slot to the sky, so the area
+    # around it is repeated in the sample to give its colours more weight.
+    fw, fh = W * SCALE, H * SCALE
+    sun = (int((FLARE_X - 30) * SCALE), 0, int((FLARE_X + 30) * SCALE), int((FLARE_Y + 10) * SCALE))
+    sw, sh = sun[2] - sun[0], sun[3] - sun[1]
+    sample = Image.new("RGB", (fw, fh * 6 + sh * 6))
     for i, f in enumerate(range(0, FRAMES, FRAMES // 6)):
-        sample.paste(frames[f], (0, H * SCALE * i))
+        sample.paste(frames[f], (0, fh * i))
+    for i in range(6):
+        for j in range(fw // sw):
+            sample.paste(frames[0].crop(sun), (j * sw, fh * 6 + sh * i))
     palette = sample.quantize(colors=CLEAR, dither=Image.Dither.NONE)
     out, prev = [], None
     for fr in frames:

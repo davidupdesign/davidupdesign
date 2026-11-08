@@ -1,4 +1,4 @@
-<img src="assets/banner.gif" width="100%" alt="Pixel-art dusk sky framed by swaying palm trees">
+<img src="assets/banner.gif" width="100%" alt="Pixel-art dusk sky with swaying palm trees and the sun glinting through the leaves">
 
 # Hello World
 
